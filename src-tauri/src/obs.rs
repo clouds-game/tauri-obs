@@ -1,7 +1,32 @@
 use std::{ffi::{CStr, CString}, path::Path};
 
-use obs_wrapper::{obs_sys::{obs_initialized, obs_get_version_string, obs_startup, obs_video_info, obs_reset_video, OBS_VIDEO_SUCCESS, obs_add_data_path}, source::video::VideoFormat};
+use obs_wrapper::{
+  obs_sys::{obs_initialized, obs_get_version_string, obs_startup, obs_video_info, obs_reset_video, OBS_VIDEO_SUCCESS, obs_add_data_path, obs_scene_create},
+  source::video::VideoFormat,
+};
 
+
+pub enum GraphicsModule {
+  OpenGL, D3D11,
+}
+
+impl GraphicsModule {
+  #[cfg(target_os = "macos")]
+  pub fn as_str(self) -> &'static str {
+    match self {
+      GraphicsModule::OpenGL => "libobs-opengl.dylib\0",
+      GraphicsModule::D3D11 => todo!(),
+    }
+  }
+
+  #[cfg(not(target_os = "macos"))]
+  pub fn as_str(self) -> &'static str {
+    match self {
+      GraphicsModule::OpenGL => "libobs-opengl\0",
+      GraphicsModule::D3D11 => "libobs-d3d11\0",
+    }
+  }
+}
 
 pub struct VideoInfo(obs_video_info);
 
@@ -24,8 +49,8 @@ impl VideoInfo {
     })
   }
 
-  pub fn set_graphics_module(mut self, value: &'static str) -> Self {
-    self.0.graphics_module = value.as_ptr() as *const _;
+  pub fn set_graphics_module(mut self, value: GraphicsModule) -> Self {
+    self.0.graphics_module = value.as_str().as_ptr() as *const _;
     self
   }
 
@@ -49,7 +74,7 @@ impl VideoInfo {
 
   pub fn set_output_format(mut self, format: VideoFormat) -> Self {
     self.0.output_format = match format {
-      VideoFormat::Unknown => todo!(),
+      VideoFormat::Unknown => u32::MAX,
       VideoFormat::None => 0,
       VideoFormat::I420 => 1,
       VideoFormat::NV12 => 2,

@@ -17,13 +17,15 @@ fn init_obs() {
   // https://github.com/eyalcohen4/obs-headless-poc/blob/master/src/main.cpp
   println!("obs_version: {}", obs::get_version_string().unwrap());
   println!("obs_initalized: {}", obs::initialized());
-  obs::startup("en_US", None);
-  // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
-  // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
-  // obs::add_data_path(data_path);
-  println!("obs_initalized: {}", obs::initialized());
+  if !obs::initialized() {
+    obs::startup("en_US", None);
+    println!("obs_initalized: {}", obs::initialized());
+    // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
+    // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
+    // obs::add_data_path(data_path);
+  }
   let mut video_info = obs::VideoInfo::new()
-    .set_graphics_module("libobs-opengl.dylib\0")
+    .set_graphics_module(obs::GraphicsModule::OpenGL)
     .set_fps(30000, 1000)
     .set_base_size(1920, 1080)
     .set_output_size(1920, 1080)
@@ -35,6 +37,7 @@ fn init_obs() {
 fn main() {
   // init_obs();
   tauri::Builder::default()
+    .plugin(tauri_plugin_store::Builder::default().build())
     .invoke_handler(tauri::generate_handler![greet])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
