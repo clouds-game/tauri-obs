@@ -3,7 +3,7 @@
 
 #[macro_use] extern crate tracing;
 
-use std::path::Path;
+use std::{fs::DirEntry, path::Path};
 
 use obs_wrapper::media::video::VideoFormat;
 
@@ -23,10 +23,20 @@ fn obs_setting_folder() -> String {
   OBS_SETTING_FOLDER.replace("$HOME", &dirs::home_dir().unwrap().display().to_string())
 }
 
+fn ignore_file(i: &DirEntry) -> bool {
+  i.file_name().eq_ignore_ascii_case(".DS_Store")
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KV {
+  name: String,
+  value: serde_json::Value,
+}
+
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProfileResult {
-  pub scenes: Vec<String>,
-  pub profiles: Vec<String>,
+  pub scenes: Vec<KV>,
+  pub profiles: Vec<KV>,
 }
 
 #[tauri::command]
@@ -37,19 +47,25 @@ async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
   if let Ok(read_dir) = std::fs::read_dir(Path::new(&setting_dir).join("basic/profiles")) {
     for i in read_dir {
       let Ok(i) = i else { continue };
-      if i.file_name().eq_ignore_ascii_case(".DS_Store") {
-        continue;
-      }
-      result.profiles.push(i.file_name().to_string_lossy().to_string());
+      if ignore_file(&i) { continue }
+      result.profiles.push(KV {
+        name: i.file_name().to_string_lossy().to_string(),
+        value: serde_json::Value::Null,
+      });
     }
   }
   if let Ok(read_dir) = std::fs::read_dir(Path::new(&setting_dir).join("basic/scenes")) {
     for i in read_dir {
       let Ok(i) = i else { continue };
-      if i.file_name().eq_ignore_ascii_case(".DS_Store") {
-        continue;
+      if ignore_file(&i) { continue }
+      if i.file_name().to_string_lossy().ends_with(".json") || i.file_name().to_string_lossy().ends_with(".json.bak") {
+        let Ok(content) = std::fs::read_to_string(i.path()) else { continue };
+        let Ok(data) = serde_json::from_str(&content) else { continue };
+        result.scenes.push(KV {
+          name: i.file_name().to_string_lossy().to_string(),
+          value: data,
+        });
       }
-      result.scenes.push(i.file_name().to_string_lossy().to_string());
     }
   }
   Ok(result)
