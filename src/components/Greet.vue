@@ -26,6 +26,31 @@ interface Source {
   settings: any
 }
 
+interface SourceScene extends Omit<Source, "id" | "settings"> {
+  id: "scene"
+  settings: {
+    custom_size: boolean
+    id_counter: number
+    items: SourceSceneItem[]
+  }
+}
+
+interface SourceSceneItem {
+  name: string
+  source_uuid: string
+  visible: boolean
+  locked: boolean
+  rot: number
+  pos: Point
+  scale: Point
+  alian: number
+}
+
+interface Point {
+  x: number
+  y: number
+}
+
 const greetMsg = ref("")
 const name = ref("")
 const profiles = ref<Profile | null>(null)
@@ -45,18 +70,43 @@ const current_scene_file = computed(() => {
   return scenes?.find((i) => i.name == selected_scene_file.value)
 })
 
-const current_scene = ref<string[]>([])
+const scenes = ref<string[]>([])
 watch(current_scene_file, () => {
   const tmp = current_scene_file.value?.value.scene_order?.map((i) => i.name)
   if (tmp != null) {
-    current_scene.value = tmp
+    scenes.value = tmp
   }
 })
+
+const selected_scene = ref<string | null>(null)
+watch(
+  current_scene_file,
+  () => {
+    selected_scene.value = current_scene_file.value?.value.current_scene ?? null
+  },
+  { immediate: true }
+)
+const selected_scene_item = computed(() => {
+  if (selected_scene.value == null) return
+  const i = current_scene_file.value?.value.sources.find(
+    (i) => i.name == selected_scene.value && i.id == "scene"
+  )
+  return i as SourceScene
+})
+const sources = computed(() => {
+  return selected_scene_item.value?.settings.items.map((i) => i.name)
+})
+
+const selected_source = ref<string | null>(null)
+watch(selected_scene, () => (selected_source.value = null))
 
 const greet = async () => {
   // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
   greetMsg.value = await invoke("greet", { name: name.value })
 }
+watch([selected_scene, selected_source], () => {
+  greetMsg.value = `scene=${selected_scene.value} source=${selected_source.value}`
+})
 const list_profile = async () => {
   profiles.value = await invoke("list_profile")
 }
@@ -79,8 +129,8 @@ const list_profile = async () => {
         <button @click="selected_scene_file = null">x</button>
       </div>
       <div class="flex flex-row">
-        <ScenePanel v-model="current_scene" />
-        <ScenePanel />
+        <ScenePanel title="Scenes" v-model="scenes" @select="(k: string)=> selected_scene = k" />
+        <ScenePanel title="Sources" v-model="sources" @select="(k: string)=> selected_source = k" />
       </div>
     </div>
     <div v-else-if="profiles">
