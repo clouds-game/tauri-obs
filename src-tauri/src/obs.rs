@@ -1,8 +1,8 @@
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  obs_sys::{obs_initialized, obs_get_version_string, obs_startup, obs_video_info, obs_reset_video, OBS_VIDEO_SUCCESS, obs_add_data_path, obs_scene_create},
-  source::video::VideoFormat,
+  obs_sys::{obs_initialized, obs_get_version_string, obs_startup, obs_video_info, obs_reset_video, OBS_VIDEO_SUCCESS, obs_add_data_path},
+  media::video::VideoFormat,
 };
 
 
@@ -92,6 +92,11 @@ impl VideoInfo {
       VideoFormat::I42A => 14,
       VideoFormat::YUVA => 15,
       VideoFormat::AYUV => 16,
+      VideoFormat::I010 => todo!(),
+      VideoFormat::P010 => todo!(),
+      VideoFormat::I210 => todo!(),
+      VideoFormat::I412 => todo!(),
+      VideoFormat::YA2L => todo!(),
     };
     self
   }
