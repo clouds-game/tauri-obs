@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Store } from "@tauri-apps/plugin-store";
-import { onMounted, ref } from "vue";
+import { Store } from "@tauri-apps/plugin-store"
+import { onMounted, ref } from "vue"
 
 const store = new Store("session.dat")
 const scenes = ref<string[]>([])
 
 onMounted(async () => {
   await store.load()
-  const data = await store.get('scenes')
+  const data = await store.get("scenes")
   if (data != null) {
     scenes.value = data as string[]
   }
@@ -15,9 +15,8 @@ onMounted(async () => {
 
 const addScene = async (name: string) => {
   scenes.value.push(name)
-  await store.set('scenes', scenes.value)
+  await store.set("scenes", scenes.value)
 }
-
 </script>
 
 <template>
@@ -25,7 +24,7 @@ const addScene = async (name: string) => {
     <div class="main">
       <div class="center">
         Scenes
-        <div v-for="k, i in scenes" :key="i">{{ k }}</div>
+        <div v-for="(k, i) in scenes" :key="i">{{ k }}</div>
       </div>
     </div>
 
@@ -51,5 +50,4 @@ const addScene = async (name: string) => {
   flex-shrink: 1;
   font-size: 0.5em;
 }
-
 </style>
