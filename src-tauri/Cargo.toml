@@ -19,3 +19,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 obs-wrapper = { git = "https://github.com/bennetthardwick/rust-obs-plugins" }
 tauri-plugin-store = "2.0.0-beta"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+dirs = "5.0.1"
+walkdir = "2.5.0"

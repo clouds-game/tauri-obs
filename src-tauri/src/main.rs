@@ -1,6 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[macro_use] extern crate tracing;
+
+use std::path::Path;
+
 use obs_wrapper::media::video::VideoFormat;
 
 pub mod obs;
@@ -12,14 +16,53 @@ fn greet(name: &str) -> String {
   format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[cfg(target_os = "macos")]
+const OBS_SETTING_FOLDER: &str = "$HOME/Library/Application Support/obs-studio";
+
+fn obs_setting_folder() -> String {
+  OBS_SETTING_FOLDER.replace("$HOME", &dirs::home_dir().unwrap().display().to_string())
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProfileResult {
+  pub scenes: Vec<String>,
+  pub profiles: Vec<String>,
+}
+
+#[tauri::command]
+async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
+  let setting_dir = folder.map(str::to_string).unwrap_or_else(||obs_setting_folder());
+  info!(setting_dir);
+  let mut result = ProfileResult::default();
+  if let Ok(read_dir) = std::fs::read_dir(Path::new(&setting_dir).join("basic/profiles")) {
+    for i in read_dir {
+      let Ok(i) = i else { continue };
+      if i.file_name().eq_ignore_ascii_case(".DS_Store") {
+        continue;
+      }
+      result.profiles.push(i.file_name().to_string_lossy().to_string());
+    }
+  }
+  if let Ok(read_dir) = std::fs::read_dir(Path::new(&setting_dir).join("basic/scenes")) {
+    for i in read_dir {
+      let Ok(i) = i else { continue };
+      if i.file_name().eq_ignore_ascii_case(".DS_Store") {
+        continue;
+      }
+      result.scenes.push(i.file_name().to_string_lossy().to_string());
+    }
+  }
+  Ok(result)
+}
+
 fn init_obs() {
   // https://github.com/lulzsun/libobs.NET/blob/main/obs_net.example/Program.cs
   // https://github.com/eyalcohen4/obs-headless-poc/blob/master/src/main.cpp
-  println!("obs_version: {}", obs::get_version_string().unwrap());
-  println!("obs_initalized: {}", obs::initialized());
+  info!(obs_version=obs::get_version_string().unwrap());
+  info!(obs_initalized=obs::initialized());
   if !obs::initialized() {
     obs::startup("en_US", None);
-    println!("obs_initalized: {}", obs::initialized());
+    info!(obs_initalized=obs::initialized());
     // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
     // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
     // obs::add_data_path(data_path);
@@ -31,15 +74,19 @@ fn init_obs() {
     .set_output_size(1920, 1080)
     .set_output_format(VideoFormat::I420);
   obs::reset_video(&mut video_info).unwrap();
-  println!("inited");
+  info!("inited");
 }
 
 fn main() {
+  tracing_subscriber::fmt().with_file(true).with_line_number(true).compact().init();
   // init_obs();
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_store::Builder::default().build())
-    .invoke_handler(tauri::generate_handler![greet])
+    .invoke_handler(tauri::generate_handler![
+      greet,
+      list_profile,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
