@@ -28,4 +28,4 @@ dist-ssr
 # will have compiled files and executables
 /target
 /Cargo.lock
-bun.lockb
+/bun.lockb
