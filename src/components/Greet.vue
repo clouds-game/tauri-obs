@@ -129,8 +129,8 @@ const list_profile = async () => {
         <button @click="selected_scene_file = null">x</button>
       </div>
       <div class="flex flex-row">
-        <ScenePanel title="Scenes" v-model="scenes" @select="(k: string)=> selected_scene = k" />
-        <ScenePanel title="Sources" v-model="sources" @select="(k: string)=> selected_source = k" />
+        <ScenePanel title="Scenes" v-model:sources="scenes" v-model="selected_scene" />
+        <ScenePanel title="Sources" v-model:sources="sources" v-model="selected_source" />
       </div>
     </div>
     <div v-else-if="profiles">
