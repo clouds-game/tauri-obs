@@ -94,10 +94,13 @@ fn init_obs() -> Result<Obs, obs::Error> {
     .with_base_size(1920, 1080)
     .with_output_size(1920, 1080)
     .with_output_format(VideoFormat::I420);
+  obs.set_channel_source(0, None);
   obs.reset_video(video_info)?;
 
   let scene = obs.create_scene("main")?;
   debug!(?obs, scene=?scene.as_source());
+  obs.set_channel_source(0, Some(scene.as_source()));
+  debug!(source=?obs.get_channel_source(0));
   info!("inited");
   Ok(obs)
 }

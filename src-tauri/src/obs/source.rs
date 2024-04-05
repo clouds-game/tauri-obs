@@ -23,8 +23,12 @@ impl Drop for SourceRef {
 }
 
 impl SourceRef {
-  pub fn from_raw(pointer: *mut obs_source_t) -> Self {
-    Self { pointer }
+  pub fn from_raw(pointer: *mut obs_source_t) -> Option<Self> {
+    if pointer.is_null() {
+      None
+    } else {
+      Some(Self { pointer })
+    }
   }
 
   pub fn id(&self) -> ObsString {

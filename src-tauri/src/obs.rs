@@ -4,10 +4,10 @@ pub mod source;
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_get_version_string, obs_initialized, obs_reset_video, obs_scene_create, obs_startup, obs_video_info, OBS_VIDEO_SUCCESS}
+  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_get_output_source, obs_get_version_string, obs_initialized, obs_reset_video, obs_scene_create, obs_set_output_source, obs_startup, obs_video_info, OBS_VIDEO_SUCCESS}
 };
 
-use self::scene::SceneRef;
+use self::{scene::SceneRef, source::SourceRef};
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -17,6 +17,8 @@ pub enum Error {
   String(#[from] std::str::Utf8Error),
   #[error("error code: {0}")]
   Code(i32),
+  #[error("ffi error")]
+  FFI(&'static str),
 }
 
 macro_rules! try_with {
@@ -180,8 +182,16 @@ impl Obs {
   pub fn create_scene(&mut self, name: &str) -> Result<SceneRef> {
     let name_c = CString::new(name.to_string()).unwrap();
     let ptr = unsafe { obs_scene_create(name_c.as_ptr()) };
-    let scene = scene::SceneRef::from_raw(ptr);
+    let scene = scene::SceneRef::from_raw(ptr).ok_or(Error::FFI("obs_scene_create"))?;
     self.scenes.push((name.to_string(), scene.clone()));
     Ok(scene)
+  }
+
+  pub fn set_channel_source(&mut self, channel: usize, source: Option<SourceRef>) {
+    let source = source.map(|i| i.pointer).unwrap_or_else(std::ptr::null_mut);
+    unsafe { obs_set_output_source(channel as _, source) }
+  }
+  pub fn get_channel_source(&self, channel: usize) -> Option<SourceRef> {
+    SourceRef::from_raw(unsafe { obs_get_output_source(channel as _) })
   }
 }
