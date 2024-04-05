@@ -7,12 +7,14 @@ use std::{fs::DirEntry, path::Path};
 
 use obs_wrapper::media::video::VideoFormat;
 
+use crate::obs::Obs;
+
 pub mod obs;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) -> String {
-  init_obs();
+  init_obs().inspect_err(|e| error!(error=%e, "when init_obs")).ok();
   format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
@@ -71,26 +73,28 @@ async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
   Ok(result)
 }
 
-fn init_obs() {
-  // https://github.com/lulzsun/libobs.NET/blob/main/obs_net.example/Program.cs
+fn init_obs() -> Result<(), obs::Error> {
+  // https://github.com/lulzsun/libobs-sharp/blob/main/libobs-sharp.example/Program.cs
   // https://github.com/eyalcohen4/obs-headless-poc/blob/master/src/main.cpp
-  info!(obs_version=obs::get_version_string().unwrap());
-  info!(obs_initalized=obs::initialized());
-  if !obs::initialized() {
-    obs::startup("en_US", None);
-    info!(obs_initalized=obs::initialized());
+  info!(obs_version=Obs::version()?);
+  let mut obs = Obs;
+  info!(obs_initalized=obs.initialized());
+  if !obs.initialized() {
+    obs.startup("en_US", None);
+    info!(obs_initalized=obs.initialized());
     // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
     // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
     // obs::add_data_path(data_path);
   }
-  let mut video_info = obs::VideoInfo::new()
-    .set_graphics_module(obs::GraphicsModule::OpenGL)
-    .set_fps(30000, 1000)
-    .set_base_size(1920, 1080)
-    .set_output_size(1920, 1080)
-    .set_output_format(VideoFormat::I420);
-  obs::reset_video(&mut video_info).unwrap();
+  let video_info = obs::VideoSetting::new()
+    .with_graphics_module(obs::GraphicsModule::OpenGL)
+    .with_fps(30000, 1000)
+    .with_base_size(1920, 1080)
+    .with_output_size(1920, 1080)
+    .with_output_format(VideoFormat::I420);
+  obs.reset_video(video_info)?;
   info!("inited");
+  Ok(())
 }
 
 fn main() {
