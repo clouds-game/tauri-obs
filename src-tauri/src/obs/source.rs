@@ -1,6 +1,6 @@
-use obs_wrapper::{obs_sys::{obs_data_t, obs_source_get_id, obs_source_get_name, obs_source_get_ref, obs_source_release, obs_source_t}, string::ObsString};
+use obs_wrapper::obs_sys::{obs_data_t, obs_source_get_id, obs_source_get_name, obs_source_get_ref, obs_source_release, obs_source_t};
 
-use super::settings;
+use super::{settings, string::{DisplayExt, ObsString}};
 
 #[allow(non_camel_case_types)]
 pub enum SourceSettings {
@@ -19,7 +19,7 @@ pub struct SourceRef {
 
 impl std::fmt::Debug for SourceRef {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_tuple("SourceRef").field(&self.id().as_str()).field(&self.name().as_str()).field(&self.pointer).finish()
+    f.debug_tuple("SourceRef").field(&self.id().display()).field(&self.name().display()).field(&self.pointer).finish()
   }
 }
 
@@ -46,13 +46,11 @@ impl SourceRef {
 
   pub fn id(&self) -> ObsString {
     let id = unsafe { obs_source_get_id(self.pointer) };
-    let id = unsafe { std::ffi::CStr::from_ptr(id) };
-    ObsString::Dynamic(id.to_owned())
+    ObsString::from_raw(id).expect("obs_source_get_id")
   }
 
   pub fn name(&self) -> ObsString {
     let name = unsafe { obs_source_get_name(self.pointer) };
-    let name = unsafe { std::ffi::CStr::from_ptr(name) };
-    ObsString::Dynamic(name.to_owned())
+    ObsString::from_raw(name).expect("obs_source_get_name")
   }
 }

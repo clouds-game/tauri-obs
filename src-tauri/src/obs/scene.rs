@@ -1,6 +1,6 @@
-use obs_wrapper::{obs_sys::{obs_scene_add, obs_scene_get_ref, obs_scene_get_source, obs_scene_release, obs_scene_t, obs_sceneitem_addref, obs_sceneitem_release, obs_sceneitem_t, obs_sceneitem_visible, obs_source_get_ref}, string::ObsString};
+use obs_wrapper::obs_sys::{obs_scene_add, obs_scene_get_ref, obs_scene_get_source, obs_scene_release, obs_scene_t, obs_sceneitem_addref, obs_sceneitem_release, obs_sceneitem_t, obs_sceneitem_visible, obs_source_get_ref};
 
-use super::source::SourceRef;
+use super::{source::SourceRef, string::{DisplayExt, ObsString}};
 
 pub struct SceneRef {
   pointer: *mut obs_scene_t
@@ -8,7 +8,7 @@ pub struct SceneRef {
 
 impl std::fmt::Debug for SceneRef {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_tuple("SceneRef").field(&self.name().as_str()).field(&self.pointer).finish()
+    f.debug_tuple("SceneRef").field(&self.name().display()).field(&self.pointer).finish()
   }
 }
 

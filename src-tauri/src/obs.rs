@@ -3,6 +3,7 @@ pub mod source;
 pub mod settings;
 pub mod data;
 pub mod module;
+pub mod string;
 
 use std::{ffi::{CStr, CString}, path::Path};
 
@@ -10,7 +11,7 @@ use obs_wrapper::{
   media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}
 };
 
-use self::{data::DataRef, module::ModuleRef, scene::SceneRef, source::SourceRef};
+use self::{data::DataRef, module::ModuleRef, scene::SceneRef, source::SourceRef, string::ObsString};
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -171,7 +172,7 @@ impl Obs {
   pub fn init_internal<P: AsRef<Path>>(&mut self, locale: &str, module_config_path: Option<P>) -> Result<()> {
     let locale = CString::new(locale)?;
     let path = match module_config_path {
-      Some(s) => Some(CString::new(s.as_ref().to_string_lossy().to_string())?),
+      Some(s) => Some(ObsString::from_path(s)?.to_cstring()?),
       None => None,
     };
     let result = unsafe { obs_startup(
@@ -187,7 +188,7 @@ impl Obs {
   }
 
   pub fn add_data_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-    let path = CString::new(path.as_ref().to_string_lossy().as_bytes())?;
+    let path = ObsString::from_path(path)?.to_cstring()?;
     unsafe { obs_add_data_path(path.as_ptr()) };
     Ok(())
   }
