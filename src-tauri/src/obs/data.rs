@@ -5,7 +5,7 @@ use obs_wrapper::obs_sys::{obs_data_addref, obs_data_create, obs_data_create_fro
 use super::Result;
 
 pub struct DataRef {
-  pointer: *mut obs_data_t,
+  pub(crate) pointer: *mut obs_data_t,
 }
 
 impl std::fmt::Debug for DataRef {

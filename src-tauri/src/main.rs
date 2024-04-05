@@ -82,8 +82,12 @@ fn init_obs() -> Result<Obs, obs::Error> {
   let mut obs = Obs::new();
   info!(obs_initalized=obs.ready());
   if !obs.ready() {
-    obs.init("en_US", None);
+    obs.init("en_US")?;
     info!(obs_initalized=obs.ready());
+    obs.add_default_module_path("~/Applications/OBS-test.app/Contents")?;
+    obs.add_default_module_path("~/Library/Application Support/obs-studio")?;
+    let module = obs.load_module("mac-capture")?;
+    info!(?module, "module loaded");
     // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
     // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
     // obs::add_data_path(data_path);
@@ -104,7 +108,8 @@ fn init_obs() -> Result<Obs, obs::Error> {
   let setting = obs::settings::mac_screen_capture::Setting::default_display();
   let setting_data = DataRef::from_value(&setting.clone().into_setting())?;
   debug!(?setting, data=%setting_data.dump().unwrap());
-  info!("inited");
+  let source = obs.create_source("capture 1", "screen_capture", setting_data)?;
+  info!(?source, "inited");
   Ok(obs)
 }
 
