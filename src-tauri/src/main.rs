@@ -13,9 +13,11 @@ pub mod obs;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn greet(name: &str) -> String {
-  init_obs().inspect_err(|e| error!(error=%e, "when init_obs")).ok();
-  format!("Hello, {}! You've been greeted from Rust!", name)
+fn greet(_name: &str) -> String {
+  match init_obs().inspect_err(|e| error!(error=%e, "when init_obs")) {
+    Ok(_) => format!("obs inited"),
+    _ => format!("init failed"),
+  }
 }
 
 #[cfg(target_os = "macos")]
@@ -73,15 +75,15 @@ async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
   Ok(result)
 }
 
-fn init_obs() -> Result<(), obs::Error> {
+fn init_obs() -> Result<Obs, obs::Error> {
   // https://github.com/lulzsun/libobs-sharp/blob/main/libobs-sharp.example/Program.cs
   // https://github.com/eyalcohen4/obs-headless-poc/blob/master/src/main.cpp
   info!(obs_version=Obs::version()?);
-  let mut obs = Obs;
-  info!(obs_initalized=obs.initialized());
-  if !obs.initialized() {
-    obs.startup("en_US", None);
-    info!(obs_initalized=obs.initialized());
+  let mut obs = Obs::new();
+  info!(obs_initalized=obs.ready());
+  if !obs.ready() {
+    obs.init("en_US", None);
+    info!(obs_initalized=obs.ready());
     // let data_path = std::env::current_dir().unwrap().join("../target/Frameworks/libobs.framework");
     // println!("resource exists: {} -> {}", data_path.to_string_lossy(), data_path.exists());
     // obs::add_data_path(data_path);
@@ -93,13 +95,16 @@ fn init_obs() -> Result<(), obs::Error> {
     .with_output_size(1920, 1080)
     .with_output_format(VideoFormat::I420);
   obs.reset_video(video_info)?;
+
+  let scene = obs.create_scene("main")?;
+  debug!(?obs, scene=?scene.as_source());
   info!("inited");
-  Ok(())
+  Ok(obs)
 }
 
 fn main() {
-  tracing_subscriber::fmt().with_file(true).with_line_number(true).compact().init();
-  // init_obs();
+  tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).with_file(true).with_line_number(true).compact().init();
+
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_store::Builder::default().build())
