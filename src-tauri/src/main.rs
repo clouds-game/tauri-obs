@@ -78,6 +78,7 @@ async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
 fn init_obs() -> Result<Obs, obs::Error> {
   // https://github.com/lulzsun/libobs-sharp/blob/main/libobs-sharp.example/Program.cs
   // https://github.com/eyalcohen4/obs-headless-poc/blob/master/src/main.cpp
+  // https://docs.obsproject.com/frontends
   info!(obs_version=Obs::version()?);
   let mut obs = Obs::new();
   info!(obs_initalized=obs.ready());
@@ -112,7 +113,7 @@ fn init_obs() -> Result<Obs, obs::Error> {
   let setting = obs::settings::image_source::ColorSetting::default();
   let setting_data = DataRef::from_value(&setting)?;
   debug!(?setting, data=%setting_data.dump().unwrap());
-  let source = obs.create_source("capture 1", "color_source", setting_data)?;
+  let source = obs.create_source("capture 1", "color_source_v3", setting_data)?;
   scene.add_source(source.clone());
   info!(?source, "inited");
   Ok(obs)

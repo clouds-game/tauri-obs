@@ -8,10 +8,10 @@ pub mod string;
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}
+  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::SourceRef
 };
 
-use self::{data::DataRef, module::ModuleRef, scene::SceneRef, source::SourceRef, string::ObsString};
+use self::{data::DataRef, module::ModuleRef, scene::SceneRef, string::ObsString};
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -27,6 +27,8 @@ pub enum Error {
   Code(i32),
   #[error("ffi error: {0}")]
   NulPointer(&'static str),
+  #[error("obs error: {0}")]
+  Obs(#[from] obs_wrapper::Error),
 }
 
 macro_rules! try_with {
@@ -256,7 +258,10 @@ impl Obs {
       }
     }
     unsafe {
+      // `obs_load_all_modules` would first `obs_open_module` then call `obs_init_module`
+      // if init failed, it would `free_module`
       obs_load_all_modules();
+      // `obs_post_load_modules` would call `module->post_load()`
       obs_post_load_modules();
     };
     names.iter().map(|i|
@@ -298,9 +303,11 @@ impl Obs {
     if channel >= MAX_CHANNELS as usize {
       return
     }
-    let source = source.map(|i| i.pointer).unwrap_or_else(std::ptr::null_mut);
-    // auto release the old source, add_ref for the new source
-    unsafe { obs_set_output_source(channel as _, source) }
+    unsafe {
+      let source = source.map(|i| i.as_raw()).unwrap_or_else(std::ptr::null_mut);
+      // auto release the old source, add_ref for the new source
+      obs_set_output_source(channel as _, source)
+    }
   }
   pub fn get_channel_source(&self, channel: usize) -> Option<SourceRef> {
     if channel >= MAX_CHANNELS as usize {
