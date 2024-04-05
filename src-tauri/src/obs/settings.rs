@@ -241,21 +241,15 @@ pub mod mac_display_capture {
   }
 
   impl Setting {
-    #[cfg(target_os = "macos")]
     pub fn default_display_uuid() -> Uuid {
-      // TODO: get display_uuid
-      Uuid::default()
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    pub fn default_display_uuid() -> Uuid {
-      Uuid::default()
+      super::mac_screen_capture::RawSetting::default_display_uuid()
     }
   }
 
   #[test]
   fn test_serde() {
-    let setting = Setting::default();
+    let mut setting = Setting::default();
+    setting.display_uuid = Default::default();
     let json = serde_json::to_string(&setting).unwrap();
     println!("{json}");
     assert_eq!(json, r#"{"display_uuid":"00000000-0000-0000-0000-000000000000","show_cursor":true,"crop_mode":0,"window":0,"show_empty_names":false}"#);
@@ -302,6 +296,277 @@ pub mod mac_window_capture {
     println!("{json}");
     assert_eq!(json, r#"{"show_shadow":false,"window":0,"show_empty_names":false}"#);
     let setting2 = serde_json::from_str(&json).unwrap();
+    assert_eq!(setting, setting2);
+  }
+}
+
+/// Shown as "Screen Capture" (macOS)
+/// plugins/mac-capture/mac-sck-video-capture.m
+/// ```c
+/// static void sck_video_capture_defaults(obs_data_t *settings)
+/// void window_defaults(obs_data_t *settings)
+/// ```
+pub mod mac_screen_capture {
+  #[cfg(target_os = "macos")]
+  use core_foundation::{base::TCFType, uuid::{CFUUIDRef, CFUUID}};
+  use uuid::Uuid;
+
+  pub const ID: &str = "screen_capture";
+  /// TODO enum
+  pub const TYPE: &str = "OBS_SOURCE_TYPE_INPUT";
+
+  #[cfg(target_os = "macos")]
+  extern "C" {
+    #[cfg_attr(feature = "link", link(name = "ColorSync", kind = "framework"))]
+    fn CGDisplayCreateUUIDFromDisplayID(display_id: u32) -> CFUUIDRef;
+  }
+
+  /// ```c
+  /// typedef enum {
+  ///   ScreenCaptureDisplayStream = 0,
+  ///   ScreenCaptureWindowStream = 1,
+  ///   ScreenCaptureApplicationStream = 2,
+  /// } ScreenCaptureStreamType;
+  /// ```
+  #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde_repr::Serialize_repr, serde_repr::Deserialize_repr)]
+  #[repr(u8)]
+  pub enum ScreenCaptureType {
+    /// ScreenCaptureStreamType.ScreenCaptureDisplayStream
+    #[default]
+    DisplayStream = 0,
+    /// ScreenCaptureStreamType.ScreenCaptureWindowStream
+    WindowStream,
+    /// ScreenCaptureStreamType.ScreenCaptureApplicationStream
+    ApplicationStream,
+  }
+
+  #[derive(Debug, Clone, PartialEq)]
+  pub enum Setting {
+    Display {
+      display_uuid: Uuid,
+      show_cursor: bool,
+      hide_obs: bool,
+    },
+    Window {
+      window_id: u32,
+      show_cursor: bool,
+      show_empty_names: bool,
+      show_hidden_windows: bool,
+    },
+    Application {
+      display_uuid: Uuid,
+      application_name: String,
+      show_cursor: bool,
+      show_hidden_windows: bool,
+    },
+  }
+
+  impl Setting {
+    pub fn type_(&self) -> ScreenCaptureType {
+      match self {
+        Setting::Display { .. } => ScreenCaptureType::DisplayStream,
+        Setting::Window { .. } => ScreenCaptureType::WindowStream,
+        Setting::Application { .. } => ScreenCaptureType::ApplicationStream,
+      }
+    }
+
+    pub fn default_display() -> Self {
+      Setting::Display {
+        display_uuid: RawSetting::default_display_uuid(),
+        show_cursor: true,
+        hide_obs: false,
+      }
+    }
+
+    pub fn default_window() -> Self {
+      Setting::Window {
+        window_id: RawSetting::default_window_id(),
+        show_cursor: true,
+        show_empty_names: false,
+        show_hidden_windows: false,
+      }
+    }
+
+    pub fn default_application() -> Self {
+      Setting::Application {
+        display_uuid: RawSetting::default_display_uuid(),
+        application_name: RawSetting::default_application_name(),
+        show_cursor: true,
+        show_hidden_windows: false,
+      }
+    }
+
+    pub fn into_setting(self) -> RawSetting {
+      self.into()
+    }
+  }
+
+  impl From<Setting> for RawSetting {
+    fn from(setting: Setting) -> Self {
+      match setting {
+        Setting::Display { display_uuid, show_cursor, hide_obs } => RawSetting {
+          display_uuid,
+          type_: ScreenCaptureType::DisplayStream,
+          show_cursor,
+          hide_obs,
+          ..Default::default()
+        },
+        Setting::Window { window_id, show_cursor, show_empty_names, show_hidden_windows } => RawSetting {
+          window: window_id,
+          type_: ScreenCaptureType::WindowStream,
+          show_cursor,
+          show_empty_names,
+          show_hidden_windows,
+          ..Default::default()
+        },
+        Setting::Application { display_uuid, application_name, show_cursor, show_hidden_windows } => RawSetting {
+          display_uuid,
+          application: Some(application_name),
+          type_: ScreenCaptureType::ApplicationStream,
+          show_cursor,
+          show_hidden_windows,
+          ..Default::default()
+        },
+      }
+    }
+  }
+
+  impl From<RawSetting> for Setting {
+    fn from(setting: RawSetting) -> Self {
+      match setting.type_ {
+        ScreenCaptureType::DisplayStream => Setting::Display {
+          display_uuid: setting.display_uuid,
+          show_cursor: setting.show_cursor,
+          hide_obs: setting.hide_obs,
+        },
+        ScreenCaptureType::WindowStream => Setting::Window {
+          window_id: setting.window,
+          show_cursor: setting.show_cursor,
+          show_empty_names: setting.show_empty_names,
+          show_hidden_windows: setting.show_hidden_windows,
+        },
+        ScreenCaptureType::ApplicationStream => Setting::Application {
+          display_uuid: setting.display_uuid,
+          application_name: setting.application.unwrap_or_default(),
+          show_cursor: setting.show_cursor,
+          show_hidden_windows: setting.show_hidden_windows,
+        },
+      }
+    }
+  }
+
+  #[derive(Debug, derivative::Derivative, serde::Serialize, serde::Deserialize, PartialEq)]
+  #[derivative(Default)]
+  pub struct RawSetting {
+    /// ```c
+    /// CGDirectDisplayID initial_display = 0;
+    /// CFUUIDRef display_uuid = CGDisplayCreateUUIDFromDisplayID(initial_display);
+    /// CFStringRef uuid_string = CFUUIDCreateString(kCFAllocatorDefault, display_uuid);
+    /// obs_data_set_default_string(settings, "display_uuid", CFStringGetCStringPtr(uuid_string, kCFStringEncodingUTF8));
+    /// CFRelease(uuid_string);
+    /// CFRelease(display_uuid);
+    /// ```
+    /// only used when `type_` is `DisplayStream | ApplicationStream`
+    pub display_uuid: Uuid,
+
+    /// ```c
+    /// obs_data_set_default_string(settings, "application", NULL);
+    /// ```
+    /// only used when `type_` is `ApplicationStream`
+    pub application: Option<String>,
+
+    /// ```c
+    /// obs_data_set_default_int(settings, "type", ScreenCaptureDisplayStream);
+    /// ```
+    #[serde(rename = "type")]
+    pub type_: ScreenCaptureType,
+
+    /// ```c
+    /// obs_data_set_default_int(settings, "window", kCGNullWindowID);
+    /// ```
+    /// https://developer.apple.com/documentation/coregraphics/kcgnullwindowid
+    /// only used when `type_` is `WindowStream`
+    pub window: u32,
+
+    /// ```c
+    /// obs_data_set_default_bool(settings, "show_cursor", true);
+    /// ```
+    #[derivative(Default(value="true"))]
+    pub show_cursor: bool,
+
+    /// ```c
+    /// obs_data_set_default_bool(settings, "hide_obs", false);
+    /// ```
+    /// only used when `type_` is `DisplayStream`
+    pub hide_obs: bool,
+
+    /// ```c
+    /// obs_data_set_default_bool(settings, "show_empty_names", false);
+    /// ```
+    /// only used when `type_` is `WindowStream`
+    pub show_empty_names: bool,
+
+    /// ```c
+    /// obs_data_set_default_bool(settings, "show_hidden_windows", false);
+    /// ```
+    /// only used when `type_` is `WindowStream | ApplicationStream`
+    pub show_hidden_windows: bool,
+  }
+
+  impl RawSetting {
+    pub fn default_display_uuid() -> Uuid {
+      // from https://github.com/obsproject/obs-studio/blob/80ad63a6da6a932c04364b30173b880cd765d5ec/plugins/mac-capture/mac-sck-video-capture.m#L387-L402
+      // CGDirectDisplayID initial_display = 0;
+      // {
+      //   NSScreen *mainScreen = [NSScreen mainScreen];
+      //   if (mainScreen) {
+      //     NSNumber *screen_num = mainScreen.deviceDescription[@"NSScreenNumber"];
+      //     if (screen_num) {
+      //       initial_display = (CGDirectDisplayID) (uintptr_t) screen_num.pointerValue;
+      //     }
+      //   }
+      // }
+      // CFUUIDRef display_uuid = CGDisplayCreateUUIDFromDisplayID(initial_display);
+      // CFStringRef uuid_string = CFUUIDCreateString(kCFAllocatorDefault, display_uuid);
+      // obs_data_set_default_string(settings, "display_uuid", CFStringGetCStringPtr(uuid_string, kCFStringEncodingUTF8));
+      // CFRelease(uuid_string);
+      // CFRelease(display_uuid);
+      #[cfg(target_os = "macos")] {
+        let display_id = 0u32;
+        let uuid: Uuid = unsafe {
+          let cf_uuid = CGDisplayCreateUUIDFromDisplayID(display_id);
+          let uuid_for_cf = uuid_for_cf::Uuid::from(CFUUID::wrap_under_create_rule(cf_uuid));
+          Uuid::from_bytes(uuid_for_cf.as_bytes().clone())
+        };
+        uuid
+      }
+      #[cfg(not(target_os = "macos"))] {
+        Uuid::default()
+      }
+    }
+
+    pub fn default_window_id() -> u32 {
+      // https://github.com/servo/core-foundation-rs/blob/d7879eb353ed04503c99237c3dd22a5652bbf745/core-graphics/src/window.rs#L51
+      // pub const kCGNullWindowID: CGWindowID = 0;
+      0
+    }
+
+    pub fn default_application_name() -> String {
+      "com.apple.dock".to_string()
+    }
+  }
+
+  #[test]
+  fn test_serde() {
+    let setting = Setting::Display {
+      display_uuid: Uuid::default(),
+      show_cursor: true,
+      hide_obs: false,
+    };
+    let json = serde_json::to_string(&RawSetting::from(setting.clone())).unwrap();
+    println!("{json}");
+    assert_eq!(json, r#"{"display_uuid":"00000000-0000-0000-0000-000000000000","application":null,"type":0,"window":0,"show_cursor":true,"hide_obs":false,"show_empty_names":false,"show_hidden_windows":false}"#);
+    let setting2 = serde_json::from_str::<RawSetting>(&json).unwrap().into();
     assert_eq!(setting, setting2);
   }
 }

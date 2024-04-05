@@ -28,3 +28,8 @@ derivative = "2.2.0"
 derive_more = "0.99.17"
 serde_repr = "0.1.18"
 uuid = { version = "1.8.0", features = ["serde"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# TODO: https://github.com/servo/core-foundation-rs/pull/228
+uuid_for_cf = { package = "uuid", version = "0.5" }
+core-foundation = { version = "0.9.4", features = ["with-uuid"] }

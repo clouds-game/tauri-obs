@@ -7,7 +7,7 @@ use std::{fs::DirEntry, path::Path};
 
 use obs_wrapper::media::video::VideoFormat;
 
-use crate::obs::Obs;
+use crate::obs::{data::DataRef, Obs};
 
 pub mod obs;
 
@@ -101,8 +101,9 @@ fn init_obs() -> Result<Obs, obs::Error> {
   debug!(?obs, scene=?scene.as_source());
   obs.set_channel_source(0, Some(scene.as_source()));
   debug!(source=?obs.get_channel_source(0));
-  let setting = obs::settings::mac_display_capture::Setting::default();
-  debug!(?setting);
+  let setting = obs::settings::mac_screen_capture::Setting::default_display();
+  let setting_data = DataRef::from_value(&setting.clone().into_setting())?;
+  debug!(?setting, data=%setting_data.dump().unwrap());
   info!("inited");
   Ok(obs)
 }

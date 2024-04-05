@@ -17,6 +17,10 @@ pub type Result<T, E=Error> = std::result::Result<T, E>;
 pub enum Error {
   #[error("convert string error")]
   String(#[from] std::str::Utf8Error),
+  #[error("convert cstring error")]
+  CString(#[from] std::ffi::NulError),
+  #[error("convert json error")]
+  Json(#[from] serde_json::Error),
   #[error("error code: {0}")]
   Code(i32),
   #[error("ffi error")]
