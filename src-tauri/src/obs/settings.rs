@@ -570,3 +570,71 @@ pub mod mac_screen_capture {
     assert_eq!(setting, setting2);
   }
 }
+
+/// plugins/image-source/image-source.c
+/// ```c
+/// static void image_source_defaults(obs_data_t *settings)
+/// ```
+pub mod image_source {
+  use std::path::PathBuf;
+
+  pub const COLOR_ID: &str = "color_source";
+  pub const ID: &str = "image_source";
+
+  /// ```c
+  /// static void color_source_defaults_v1(obs_data_t *settings)
+  /// static void color_source_defaults_v2(obs_data_t *settings)
+  /// static void color_source_defaults_v3(obs_data_t *settings)
+  /// ```
+  #[derive(Debug, derivative::Derivative, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+  #[derivative(Default)]
+  pub struct ColorSetting {
+    /// obs_data_set_default_int(settings, "color", 0xFFD1D1D1);
+    #[derivative(Default(value="0xFFD1D1D1"))]
+    pub color: u32,
+    /// obs_data_set_default_int(settings, "width", 1920);
+    #[derivative(Default(value="1920"))]
+    pub width: i32,
+    /// obs_data_set_default_int(settings, "height", 1080);
+    #[derivative(Default(value="1080"))]
+    pub height: i32,
+  }
+
+  /// file filter
+  /// ```c
+  ///  "BMP Files (*.bmp);;"
+  ///  "Targa Files (*.tga);;"
+  ///  "PNG Files (*.png);;"
+  ///  "JPEG Files (*.jpeg *.jpg);;"
+  /// #ifdef _WIN32
+  ///  "JXR Files (*.jxr);;"
+  /// #endif
+  ///  "GIF Files (*.gif);;"
+  ///  "PSD Files (*.psd);;"
+  ///  "WebP Files (*.webp);;"
+  ///  "All Files (*.*)";
+  //// ```
+  #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+  pub struct ImageSetting {
+    /// obs_properties_add_path(props, "file", obs_module_text("File"), OBS_PATH_FILE, image_filter, path.array);
+    pub file: Option<PathBuf>,
+    /// obs_data_set_default_bool(settings, "unload", false);
+    pub unload: bool,
+    /// obs_data_set_default_bool(settings, "linear_alpha", false);
+    pub linear_alpha: bool,
+  }
+
+  #[test]
+  fn test_serde() {
+    let setting = ImageSetting {
+      file: Some(PathBuf::from("test.png")),
+      unload: false,
+      linear_alpha: false,
+    };
+    let json = serde_json::to_string(&setting).unwrap();
+    println!("{json}");
+    assert_eq!(json, r#"{"file":"test.png","unload":false,"linear_alpha":false}"#);
+    let setting2 = serde_json::from_str(&json).unwrap();
+    assert_eq!(setting, setting2);
+  }
+}

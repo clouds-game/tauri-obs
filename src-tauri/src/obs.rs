@@ -7,7 +7,7 @@ pub mod module;
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}
+  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}
 };
 
 use self::{data::DataRef, module::ModuleRef, scene::SceneRef, source::SourceRef};
@@ -255,7 +255,8 @@ impl Obs {
       }
     }
     unsafe {
-      obs_load_all_modules()
+      obs_load_all_modules();
+      obs_post_load_modules();
     };
     names.iter().map(|i|
       self.get_module(i)

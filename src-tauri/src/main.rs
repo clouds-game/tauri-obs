@@ -109,10 +109,10 @@ fn init_obs() -> Result<Obs, obs::Error> {
   debug!(?obs, scene=?scene.as_source());
   obs.set_channel_source(0, Some(scene.as_source()));
   debug!(source=?obs.get_channel_source(0));
-  let setting = obs::settings::mac_screen_capture::Setting::default_display();
-  let setting_data = DataRef::from_value(&setting.clone().into_setting())?;
+  let setting = obs::settings::image_source::ColorSetting::default();
+  let setting_data = DataRef::from_value(&setting)?;
   debug!(?setting, data=%setting_data.dump().unwrap());
-  let source = obs.create_source("capture 1", "screen_capture", setting_data)?;
+  let source = obs.create_source("capture 1", "color_source", setting_data)?;
   scene.add_source(source.clone());
   info!(?source, "inited");
   Ok(obs)
