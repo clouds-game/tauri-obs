@@ -243,16 +243,23 @@ impl Obs {
     Ok(())
   }
   /// this won't work since it loads frontend-tools
-  pub fn load_module(&self, name: &str) -> Result<ModuleRef> {
-    let name_cstr = CString::new(name.to_string())?;
+  pub fn load_modules<S: AsRef<str>, I: IntoIterator<Item = S>>(&self, names: I) -> Result<Vec<ModuleRef>> {
+    let names = names.into_iter().map(|i| i.as_ref().to_string()).collect::<Vec<_>>();
+    // trick: add safe module first
+    // but we could not delete module
+    // TODO: use find_modules
+    for name in &names {
+      let name_cstr = CString::new(name.to_string())?;
+      unsafe {
+        obs_add_safe_module(name_cstr.as_ptr());
+      }
+    }
     unsafe {
-      // trick: add safe module first
-      // but we could not delete module
-      // TODO: use find_modules
-      obs_add_safe_module(name_cstr.as_ptr());
       obs_load_all_modules()
-     };
-     self.get_module(name)
+    };
+    names.iter().map(|i|
+      self.get_module(i)
+    ).collect()
   }
   pub fn get_module(&self, name: &str) -> Result<ModuleRef> {
     let name = CString::new(name.to_string())?;
@@ -290,12 +297,14 @@ impl Obs {
       return
     }
     let source = source.map(|i| i.pointer).unwrap_or_else(std::ptr::null_mut);
+    // auto release the old source, add_ref for the new source
     unsafe { obs_set_output_source(channel as _, source) }
   }
   pub fn get_channel_source(&self, channel: usize) -> Option<SourceRef> {
     if channel >= MAX_CHANNELS as usize {
       return None
     }
+    // Use `obs_source_release` to release.
     SourceRef::from_raw(unsafe { obs_get_output_source(channel as _) })
   }
 }
