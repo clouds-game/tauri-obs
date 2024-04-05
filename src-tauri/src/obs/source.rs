@@ -1,4 +1,17 @@
-use obs_wrapper::{obs_sys::{obs_source_get_id, obs_source_get_name, obs_source_get_ref, obs_source_release, obs_source_t}, string::ObsString};
+use obs_wrapper::{obs_sys::{obs_data_t, obs_source_get_id, obs_source_get_name, obs_source_get_ref, obs_source_release, obs_source_t}, string::ObsString};
+
+use super::settings;
+
+#[allow(non_camel_case_types)]
+pub enum SourceSettings {
+  Win_GameCapture(settings::win_game_capture::Setting),
+}
+
+impl SourceSettings {
+  pub fn build(self) -> obs_data_t {
+    todo!()
+  }
+}
 
 pub struct SourceRef {
   pub(crate) pointer: *mut obs_source_t,

@@ -1,10 +1,12 @@
 pub mod scene;
 pub mod source;
+pub mod settings;
+pub mod data;
 
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_get_output_source, obs_get_version_string, obs_initialized, obs_reset_video, obs_scene_create, obs_set_output_source, obs_startup, obs_video_info, OBS_VIDEO_SUCCESS}
+  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_get_output_source, obs_get_version_string, obs_initialized, obs_reset_video, obs_scene_create, obs_set_output_source, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}
 };
 
 use self::{scene::SceneRef, source::SourceRef};
@@ -188,10 +190,16 @@ impl Obs {
   }
 
   pub fn set_channel_source(&mut self, channel: usize, source: Option<SourceRef>) {
+    if channel >= MAX_CHANNELS as usize {
+      return
+    }
     let source = source.map(|i| i.pointer).unwrap_or_else(std::ptr::null_mut);
     unsafe { obs_set_output_source(channel as _, source) }
   }
   pub fn get_channel_source(&self, channel: usize) -> Option<SourceRef> {
+    if channel >= MAX_CHANNELS as usize {
+      return None
+    }
     SourceRef::from_raw(unsafe { obs_get_output_source(channel as _) })
   }
 }

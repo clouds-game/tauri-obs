@@ -101,6 +101,8 @@ fn init_obs() -> Result<Obs, obs::Error> {
   debug!(?obs, scene=?scene.as_source());
   obs.set_channel_source(0, Some(scene.as_source()));
   debug!(source=?obs.get_channel_source(0));
+  let setting = obs::settings::mac_display_capture::Setting::default();
+  debug!(?setting);
   info!("inited");
   Ok(obs)
 }
