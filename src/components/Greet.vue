@@ -110,6 +110,9 @@ watch([selected_scene, selected_source], () => {
 const list_profile = async () => {
   profiles.value = await invoke("list_profile")
 }
+const create_display = async () => {
+  profiles.value = await invoke("create_display")
+}
 </script>
 
 <template>
@@ -118,6 +121,7 @@ const list_profile = async () => {
       <input id="greet-input" v-model="name" placeholder="Enter a name..." />
       <button type="submit" @click.prevent="greet">Greet</button>
       <button type="submit" @click.prevent="list_profile">List</button>
+      <button type="submit" @click.prevent="create_display">display</button>
     </form>
 
     <p>{{ greetMsg }}</p>

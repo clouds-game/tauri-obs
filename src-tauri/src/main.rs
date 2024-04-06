@@ -6,10 +6,26 @@
 use std::{fs::DirEntry, path::Path};
 
 use obs_wrapper::{data::DataObj, media::video::VideoFormat};
+use raw_window_handle::HasWindowHandle;
+use tauri::AppHandle;
 
 use crate::obs::Obs;
 
 pub mod obs;
+pub mod winit;
+
+pub type Result<T, E=Error> = std::result::Result<T, E>;
+
+#[derive(Debug, serde::Serialize)]
+pub struct Error(String);
+
+impl<T: ToString> From<T> for Error {
+  fn from(e: T) -> Self {
+    let message = e.to_string();
+    warn!(ty=std::any::type_name::<T>(), %message, "error");
+    Self(message)
+  }
+}
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -44,7 +60,7 @@ pub struct ProfileResult {
 }
 
 #[tauri::command]
-async fn list_profile(folder: Option<&str>) -> Result<ProfileResult, String> {
+async fn list_profile(folder: Option<&str>) -> Result<ProfileResult> {
   let setting_dir = folder.map(str::to_string).unwrap_or_else(||obs_setting_folder());
   info!(setting_dir);
   let mut result = ProfileResult::default();
@@ -119,6 +135,20 @@ fn init_obs() -> Result<Obs, obs::Error> {
   Ok(obs)
 }
 
+#[tauri::command]
+fn create_display(app: AppHandle) -> Result<()> {
+  // let mut obs = Obs::new();
+  // let display = obs.create_display(info)?;
+  let window = app.create_tao_window(|| ("display".to_string(), {
+    tao::window::WindowBuilder::new()
+      .with_title("Hello World")
+      .with_inner_size(tao::dpi::LogicalSize::new(400, 320))
+  }))?.upgrade().unwrap();
+  let handle = window.window_handle()?;
+  crate::winit::create_display(handle)?;
+  Ok(())
+}
+
 fn main() {
   tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).with_file(true).with_line_number(true).compact().init();
 
@@ -128,6 +158,7 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       greet,
       list_profile,
+      create_display,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
