@@ -2,16 +2,15 @@ pub mod scene;
 pub mod source;
 pub mod settings;
 pub mod data;
-pub mod module;
 pub mod string;
 
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::SourceRef
+  media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::SourceRef, wrapper::PtrWrapper as _
 };
 
-use self::{data::DataRef, module::ModuleRef, scene::SceneRef, string::ObsString};
+use self::{data::DataRef, scene::SceneRef, string::ObsString};
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -271,7 +270,7 @@ impl Obs {
   pub fn get_module(&self, name: &str) -> Result<ModuleRef> {
     let name = CString::new(name.to_string())?;
     let ptr = unsafe { obs_get_module(name.as_ptr()) };
-    ModuleRef::from_raw(ptr).ok_or(Error::NulPointer("obs_get_module"))
+    Ok(ModuleRef::from_raw(ptr)?)
   }
 
   /// You should first call `.init()`.
@@ -293,10 +292,12 @@ impl Obs {
   pub fn create_source(&mut self, name: &str, type_: &str, settings: DataRef) -> Result<SourceRef> {
     let name = CString::new(name.to_string())?;
     let type_ = CString::new(type_.to_string())?;
-    let ptr = unsafe { obs_source_create(type_.as_ptr(), name.as_ptr(), settings.pointer, std::ptr::null_mut()) };
-    // TODO: check ptr valid since create failed won't return null
-    // https://github.com/obsproject/obs-studio/blob/80ad63a6da6a932c04364b30173b880cd765d5ec/libobs/obs-source.c#L400-L401
-    SourceRef::from_raw(ptr).ok_or(Error::NulPointer("obs_source_create"))
+    unsafe {
+      let ptr = obs_source_create(type_.as_ptr(), name.as_ptr(), settings.pointer, std::ptr::null_mut());
+      // TODO: check ptr valid since create failed won't return null
+      // https://github.com/obsproject/obs-studio/blob/80ad63a6da6a932c04364b30173b880cd765d5ec/libobs/obs-source.c#L400-L401
+      SourceRef::from_raw_unchecked(ptr).ok_or(Error::NulPointer("obs_source_create"))
+    }
   }
 
   pub fn set_channel_source(&mut self, channel: usize, source: Option<SourceRef>) {
@@ -304,7 +305,7 @@ impl Obs {
       return
     }
     unsafe {
-      let source = source.map(|i| i.as_raw()).unwrap_or_else(std::ptr::null_mut);
+      let source = source.map(|i| i.as_ptr_mut()).unwrap_or_else(std::ptr::null_mut);
       // auto release the old source, add_ref for the new source
       obs_set_output_source(channel as _, source)
     }
@@ -314,6 +315,8 @@ impl Obs {
       return None
     }
     // Use `obs_source_release` to release.
-    SourceRef::from_raw(unsafe { obs_get_output_source(channel as _) })
+    unsafe {
+      SourceRef::from_raw_unchecked(obs_get_output_source(channel as _))
+    }
   }
 }

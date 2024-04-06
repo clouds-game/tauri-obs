@@ -1,4 +1,4 @@
-use obs_wrapper::{obs_sys::{obs_scene_add, obs_scene_get_ref, obs_scene_get_source, obs_scene_release, obs_scene_t, obs_sceneitem_addref, obs_sceneitem_release, obs_sceneitem_t, obs_sceneitem_visible, obs_source_get_ref}, source::SourceRef, string::{DisplayExt as _, ObsString}};
+use obs_wrapper::{obs_sys::{obs_scene_add, obs_scene_get_ref, obs_scene_get_source, obs_scene_release, obs_scene_t, obs_sceneitem_addref, obs_sceneitem_release, obs_sceneitem_t, obs_sceneitem_visible}, source::SourceRef, string::{DisplayExt as _, ObsString}, wrapper::PtrWrapper as _};
 
 use super::Result;
 
@@ -41,15 +41,14 @@ impl SceneRef {
     let ptr = unsafe {
       // as doc said "The scene’s source. Does not increment the reference"
       // we should manually add_ref for it
-      let ptr = obs_scene_get_source(self.pointer);
-      obs_source_get_ref(ptr)
+      obs_scene_get_source(self.pointer)
     };
     SourceRef::from_raw(ptr).expect("obs_scene_get_source")
   }
 
   pub fn add_source(&self, source: SourceRef) -> SceneItemRef {
     let ptr = unsafe {
-      let ptr = obs_scene_add(self.pointer, source.as_raw());
+      let ptr = obs_scene_add(self.pointer, source.as_ptr_mut());
       // add ref for source, Docs said "A new scene item for a source within a scene.  Does not
       // increment the reference"
       obs_sceneitem_addref(ptr);
