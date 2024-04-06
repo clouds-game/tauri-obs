@@ -1,15 +1,14 @@
 pub mod source;
 pub mod settings;
 pub mod data;
-pub mod string;
 
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::{scene::SceneRef, SourceRef}, wrapper::PtrWrapper as _
+  media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::{scene::SceneRef, SourceRef}, string::TryIntoObsString as _, wrapper::PtrWrapper as _
 };
 
-use self::{data::DataRef, string::ObsString};
+use self::data::DataRef;
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -172,7 +171,7 @@ impl Obs {
   pub fn init_internal<P: AsRef<Path>>(&mut self, locale: &str, module_config_path: Option<P>) -> Result<()> {
     let locale = CString::new(locale)?;
     let path = match module_config_path {
-      Some(s) => Some(ObsString::from_path(s)?.to_cstring()?),
+      Some(s) => Some(s.as_ref().try_into_obs_string()?),
       None => None,
     };
     let result = unsafe { obs_startup(
@@ -188,7 +187,7 @@ impl Obs {
   }
 
   pub fn add_data_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-    let path = ObsString::from_path(path)?.to_cstring()?;
+    let path = path.as_ref().try_into_obs_string()?;
     unsafe { obs_add_data_path(path.as_ptr()) };
     Ok(())
   }

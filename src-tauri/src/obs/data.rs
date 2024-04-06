@@ -1,8 +1,8 @@
 use std::ffi::CString;
 
-use obs_wrapper::obs_sys::{obs_data_addref, obs_data_create, obs_data_create_from_json, obs_data_get_bool, obs_data_get_int, obs_data_get_json, obs_data_get_string, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_data_t};
+use obs_wrapper::{obs_sys::{obs_data_addref, obs_data_create, obs_data_create_from_json, obs_data_get_bool, obs_data_get_int, obs_data_get_json, obs_data_get_string, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_data_t}, string::{DisplayExt, ObsString, TryIntoObsString}};
 
-use super::{string::ObsString, Error, Result};
+use super::Result;
 
 pub struct DataRef {
   pub(crate) pointer: *mut obs_data_t,
@@ -57,7 +57,7 @@ impl DataRef {
     let result = unsafe {
       obs_data_get_string(self.pointer, key.as_ptr())
     };
-    ObsString::from_raw(result).ok_or(Error::NulPointer("obs_data_get_string"))
+    Ok(result.try_into_obs_string()?)
   }
 
   pub fn set_int(&self, key: &str, value: i64) -> Result<()> {
@@ -126,7 +126,7 @@ impl DataRef {
     unsafe {
       // this buffer is managed by `self.pointer`, no need for addref/release
       let buffer = obs_data_get_json(self.pointer);
-      Ok(ObsString::from_raw(buffer).ok_or(Error::NulPointer("obs_data_get_json"))?.to_string_lossy().to_string())
+      Ok(buffer.try_into_obs_string()?.display().to_string())
     }
   }
 }
