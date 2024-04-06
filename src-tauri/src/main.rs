@@ -5,9 +5,9 @@
 
 use std::{fs::DirEntry, path::Path};
 
-use obs_wrapper::media::video::VideoFormat;
+use obs_wrapper::{data::DataObj, media::video::VideoFormat};
 
-use crate::obs::{data::DataRef, Obs};
+use crate::obs::Obs;
 
 pub mod obs;
 
@@ -111,8 +111,8 @@ fn init_obs() -> Result<Obs, obs::Error> {
   obs.set_channel_source(0, Some(scene.as_source()));
   debug!(source=?obs.get_channel_source(0));
   let setting = obs::settings::image_source::ColorSetting::default();
-  let setting_data = DataRef::from_value(&setting)?;
-  debug!(?setting, data=%setting_data.dump().unwrap());
+  let setting_data = DataObj::from_json(serde_json::to_string(&setting)?).unwrap();
+  debug!(?setting, data=%setting_data.get_json().unwrap());
   let source = obs.create_source("capture 1", "color_source_v3", setting_data)?;
   scene.add_source(source.clone());
   info!(?source, "inited");
