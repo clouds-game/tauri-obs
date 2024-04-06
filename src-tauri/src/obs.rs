@@ -1,4 +1,3 @@
-pub mod scene;
 pub mod source;
 pub mod settings;
 pub mod data;
@@ -7,10 +6,10 @@ pub mod string;
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::SourceRef, wrapper::PtrWrapper as _
+  media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::{scene::SceneRef, SourceRef}, wrapper::PtrWrapper as _
 };
 
-use self::{data::DataRef, scene::SceneRef, string::ObsString};
+use self::{data::DataRef, string::ObsString};
 
 pub type Result<T, E=Error> = std::result::Result<T, E>;
 
@@ -283,8 +282,10 @@ impl Obs {
 
   pub fn create_scene(&mut self, name: &str) -> Result<SceneRef> {
     let name_c = CString::new(name.to_string()).unwrap();
-    let ptr = unsafe { obs_scene_create(name_c.as_ptr()) };
-    let scene = scene::SceneRef::from_raw(ptr).ok_or(Error::NulPointer("obs_scene_create"))?;
+    let scene = unsafe {
+      let ptr = obs_scene_create(name_c.as_ptr());
+      SceneRef::from_raw_unchecked(ptr).ok_or(Error::NulPointer("obs_scene_create"))?
+    };
     self.scenes.push(scene.clone());
     Ok(scene)
   }
