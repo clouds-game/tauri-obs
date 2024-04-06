@@ -5,7 +5,7 @@
 
 use std::{fs::DirEntry, path::Path};
 
-use obs_wrapper::{data::DataObj, media::video::VideoFormat};
+use obs_wrapper::{data::DataObj, graphics::display::DisplayRef, media::video::VideoFormat};
 use raw_window_handle::HasWindowHandle;
 use tauri::AppHandle;
 
@@ -144,8 +144,30 @@ fn create_display(app: AppHandle) -> Result<()> {
       .with_title("Hello World")
       .with_inner_size(tao::dpi::LogicalSize::new(400, 320))
   }))?.upgrade().unwrap();
+  let window_id = window.id();
+  info!(?window_id, "window created");
   let handle = window.window_handle()?;
-  crate::winit::create_display(handle)?;
+
+  let display = crate::winit::create_display(handle, (window.inner_size().width, window.inner_size().height))?;
+  struct DisplayBox(std::sync::Arc<std::sync::Mutex<Option<DisplayRef>>>);
+  unsafe impl Send for DisplayBox {}
+  impl DisplayBox { fn drop(&self) { self.0.lock().unwrap().take(); } }
+  let display = DisplayBox(std::sync::Arc::new(std::sync::Mutex::new(Some(display))));
+  app.send_tao_window_event(window_id, tauri_runtime_wry::WindowMessage::AddEventListener(100, Box::new(move |event| {
+    match event {
+      tauri_runtime::window::WindowEvent::Destroyed => { display.drop(); },
+      tauri_runtime::window::WindowEvent::Resized(size) => {
+        let mut display = display.0.lock().unwrap();
+        if let Some(display) = display.as_mut() {
+          display.set_size(size.width, size.height);
+        }
+      },
+      tauri_runtime::window::WindowEvent::Moved(_) => {},
+      _ => {
+        debug!(?event, "event");
+      },
+    }
+  })))?;
   Ok(())
 }
 
