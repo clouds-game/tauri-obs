@@ -4,7 +4,7 @@ pub mod display;
 use std::{ffi::{CStr, CString}, path::Path};
 
 use obs_wrapper::{
-  data::DataObj, graphics::display::DisplayRef, media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_display_create, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::{scene::SceneRef, SourceRef}, string::TryIntoObsString as _, wrapper::PtrWrapper as _
+  data::DataObj, graphics::display::{Color, DisplayRef}, media::video::VideoFormat, module::ModuleRef, obs_sys::{obs_add_data_path, obs_add_module_path, obs_add_safe_module, obs_display_create, obs_get_module, obs_get_output_source, obs_get_version_string, obs_initialized, obs_load_all_modules, obs_post_load_modules, obs_reset_video, obs_scene_create, obs_set_output_source, obs_source_create, obs_startup, obs_video_info, MAX_CHANNELS, OBS_VIDEO_SUCCESS}, source::{scene::SceneRef, SourceRef}, string::TryIntoObsString as _, wrapper::PtrWrapper as _
 };
 
 use self::display::DisplayInitInfo;
@@ -113,7 +113,6 @@ impl VideoSetting {
 
   pub fn with_output_format(mut self, format: VideoFormat) -> Self {
     self.0.output_format = match format {
-      VideoFormat::Unknown => u32::MAX,
       VideoFormat::None => 0,
       VideoFormat::I420 => 1,
       VideoFormat::NV12 => 2,
@@ -319,7 +318,8 @@ impl Obs {
     }
   }
 
-  pub fn create_display(&mut self, info: &DisplayInitInfo, color: u32) -> Result<DisplayRef> {
+  pub fn create_display(&mut self, info: &DisplayInitInfo, color: Color) -> Result<DisplayRef> {
+    let color = color.as_format(info.color_format());
     unsafe {
       let ptr = obs_display_create(&info.inner as *const display::sys::gs_init_data as *const _, color);
       DisplayRef::from_raw_unchecked(ptr).ok_or(Error::NulPointer("obs_display_create"))

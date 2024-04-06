@@ -61,6 +61,10 @@ impl DisplayInitInfo {
     Self { inner }
   }
 
+  pub fn color_format(&self) -> GraphicsColorFormat {
+    GraphicsColorFormat::from_raw(self.inner.format).unwrap_or(GraphicsColorFormat::UNKNOWN)
+  }
+
   pub fn with_color_format(mut self, format: GraphicsColorFormat) -> Self {
     self.inner.format = format.as_raw();
     self
